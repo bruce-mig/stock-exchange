@@ -94,4 +94,8 @@ func TestCancelOrder(t *testing.T) {
 	ob.CancelOrder(buyOrder)
 
 	assert(t, ob.BidTotalVolume(), 0.0)
+
+	_, ok := ob.Orders[buyOrder.ID]
+
+	assert(t, ok, false)
 }
