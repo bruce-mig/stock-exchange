@@ -8,23 +8,47 @@ import (
 	"time"
 )
 
-type Match struct {
-	Ask        *Order
-	Bid        *Order
-	Sizefilled float64
-	Price      float64
-}
+type (
+	Match struct {
+		Ask        *Order
+		Bid        *Order
+		Sizefilled float64
+		Price      float64
+	}
 
-type Order struct {
-	ID        int64
-	UserID    int64
-	Size      float64
-	Bid       bool
-	Limit     *Limit //pointer to the limit level the order belongs to
-	Timestamp int64
-}
+	Order struct {
+		ID        int64
+		UserID    int64
+		Size      float64
+		Bid       bool
+		Limit     *Limit //pointer to the limit level the order belongs to
+		Timestamp int64
+	}
 
-type Orders []*Order
+	Orders []*Order
+
+	Limit struct {
+		Price       float64
+		Orders      Orders
+		TotalVolume float64
+	}
+
+	Limits []*Limit
+
+	ByBestAsk struct{ Limits }
+
+	ByBestBid struct{ Limits }
+
+	Orderbook struct {
+		asks []*Limit
+		bids []*Limit
+
+		mu        sync.RWMutex
+		AskLimits map[float64]*Limit
+		BidLimits map[float64]*Limit
+		Orders    map[int64]*Order
+	}
+)
 
 // sorting in increasing order
 // oldest order has the smallest timestamp
@@ -52,16 +76,6 @@ func (o *Order) IsFilled() bool {
 	return o.Size == 0.0
 }
 
-type Limit struct {
-	Price       float64
-	Orders      Orders
-	TotalVolume float64
-}
-
-type Limits []*Limit
-
-type ByBestAsk struct{ Limits }
-
 // sorting in increasing order
 // best ask price (for buyers) is the smallest
 func (a ByBestAsk) Len() int      { return len(a.Limits) }
@@ -69,8 +83,6 @@ func (a ByBestAsk) Swap(i, j int) { a.Limits[i], a.Limits[j] = a.Limits[j], a.Li
 
 // Less reports whether x[i] should be ordered before x[j], as required by the sort Interface.
 func (a ByBestAsk) Less(i, j int) bool { return a.Limits[i].Price < a.Limits[j].Price }
-
-type ByBestBid struct{ Limits }
 
 // sorting in decreasing order
 // best bid price (for sellers) is the highest
@@ -165,16 +177,6 @@ func (l *Limit) fillOrder(a, b *Order) Match {
 		Sizefilled: sizeFilled,
 		Price:      l.Price,
 	}
-}
-
-type Orderbook struct {
-	asks []*Limit
-	bids []*Limit
-
-	mu        sync.RWMutex
-	AskLimits map[float64]*Limit
-	BidLimits map[float64]*Limit
-	Orders    map[int64]*Order
 }
 
 func NewOrderbook() *Orderbook {
