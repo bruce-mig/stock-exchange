@@ -31,9 +31,10 @@ type (
 	Market    string
 
 	Exchange struct {
-		Client     *ethclient.Client
-		Users      map[int64]*User
-		orders     map[int64]int64
+		Client *ethclient.Client
+		Users  map[int64]*User
+		// Orders maps a user to his orders.
+		Orders     map[int64][]*orderbook.Order
 		PrivateKey *ecdsa.PrivateKey
 		orderbooks map[Market]*orderbook.Orderbook
 	}
@@ -64,9 +65,10 @@ type (
 	}
 
 	MatchedOrder struct {
-		Price float64
-		Size  float64
-		ID    int64
+		UserID int64
+		Price  float64
+		Size   float64
+		ID     int64
 	}
 
 	User struct {
@@ -125,8 +127,8 @@ func StartServer() {
 	user6 := NewUser(pkStr6, 6)
 	ex.Users[user6.ID] = user6
 
+	e.GET("/order/user/:userID", ex.handleGetOrders)
 	e.GET("/book/:market", ex.handleGetBook)
-	// e.GET("/book/:market/ask", ex.)
 	e.GET("/book/:market/bestBid", ex.handleGetBestBid)
 	e.GET("/book/:market/bestAsk", ex.handleGetBestAsk)
 
@@ -163,10 +165,35 @@ func NewExchange(privateKey string, client *ethclient.Client) (*Exchange, error)
 	return &Exchange{
 		Client:     client,
 		Users:      make(map[int64]*User),
-		orders:     make(map[int64]int64),
+		Orders:     make(map[int64][]*orderbook.Order),
 		PrivateKey: pk,
 		orderbooks: orderbooks,
 	}, nil
+}
+
+func (ex *Exchange) handleGetOrders(c echo.Context) error {
+	userIDStr := c.Param("userID")
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		return err
+	}
+
+	orderbookOrders := ex.Orders[int64(userID)]
+	orders := make([]*Order, len(orderbookOrders))
+
+	for i := 0; i < len(orderbookOrders); i++ {
+		order := &Order{
+			UserID: orderbookOrders[i].UserID,
+			ID:     orderbookOrders[i].ID,
+			// Price:     orderbookOrders[i].Limit.Price,
+			Size:      orderbookOrders[i].Size,
+			Bid:       orderbookOrders[i].Bid,
+			Timestamp: orderbookOrders[i].Timestamp,
+		}
+		orders[i] = order
+	}
+
+	return c.JSON(http.StatusOK, orders)
 }
 
 func (ex *Exchange) handleGetBook(c echo.Context) error {
@@ -276,14 +303,17 @@ func (ex *Exchange) handlePlaceMarketOrder(market Market, order *orderbook.Order
 	totalSizeFilled := 0.0
 	sumPrice := 0.0
 	for i := 0; i < len(matchedOrders); i++ {
+		limitUserID := matches[i].Bid.UserID
 		id := matches[i].Bid.ID
 		if isBid {
+			limitUserID = matches[i].Ask.UserID
 			id = matches[i].Ask.ID
 		}
 		matchedOrders[i] = &MatchedOrder{
-			ID:    id,
-			Size:  matches[i].Sizefilled,
-			Price: matches[i].Price,
+			UserID: limitUserID,
+			ID:     id,
+			Size:   matches[i].Sizefilled,
+			Price:  matches[i].Price,
 		}
 		totalSizeFilled += matches[i].Sizefilled
 		sumPrice += matches[i].Price
@@ -298,6 +328,9 @@ func (ex *Exchange) handlePlaceMarketOrder(market Market, order *orderbook.Order
 func (ex *Exchange) handlePlaceLimitOrder(market Market, price float64, order *orderbook.Order) error {
 	ob := ex.orderbooks[market]
 	ob.PlaceLimitOrder(price, order)
+
+	// keep track of user orders
+	ex.Orders[order.UserID] = append(ex.Orders[order.UserID], order)
 
 	log.Printf("new LIMIT order => type: [%t] | price [%.2f] | size [%.2f]", order.Bid, order.Limit.Price, order.Size)
 
@@ -323,10 +356,29 @@ func (ex *Exchange) handlePlaceOrder(c echo.Context) error {
 
 	//Market Orders
 	if placeOrderData.Type == MarketOrder {
-		matches, _ := ex.handlePlaceMarketOrder(market, order)
+		matches, matchedOrders := ex.handlePlaceMarketOrder(market, order)
 
 		if err := ex.handleMatches(matches); err != nil {
 			return err
+		}
+
+		// Delete the order(s) of the user when filled
+		for _, matchedOrder := range matchedOrders {
+			userOrders := ex.Orders[matchedOrder.UserID]
+			for i := 0; i < len(userOrders); i++ {
+				if matchedOrder.ID == userOrders[i].ID {
+					// if the size is 0 we can delete this order
+					if userOrders[i].IsFilled() {
+						fmt.Printf("DELETING => %+v\n", userOrders[i])
+						// delete the order from the slice by shifting -1
+						if matchedOrder.ID == userOrders[i].ID {
+							userOrders[i] = userOrders[len(userOrders)-1]
+							userOrders = userOrders[:len(userOrders)-1]
+						}
+					}
+				}
+
+			}
 		}
 	}
 	res := &PlaceOrderResponse{
