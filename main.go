@@ -146,6 +146,9 @@ func seedMarket(c *client.Client) error {
 }
 
 func main() {
+	//if go code crashes, we get file name and line number
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
 	go server.StartServer()
 
 	//wait for server to boot up b4 client send reqq
