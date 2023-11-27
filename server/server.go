@@ -90,6 +90,10 @@ type (
 	PriceResponse struct {
 		Price float64
 	}
+
+	APIError struct {
+		Error string
+	}
 )
 
 func StartServer() {
@@ -138,6 +142,7 @@ func StartServer() {
 	user6 := NewUser(pkStr6, 6)
 	ex.Users[user6.ID] = user6
 
+	e.GET("/trades/:market", ex.handleGetTrades)
 	e.GET("/order/user/:userID", ex.handleGetOrders)
 	e.GET("/book/:market", ex.handleGetBook)
 	e.GET("/book/:market/bestBid", ex.handleGetBestBid)
@@ -180,6 +185,15 @@ func NewExchange(privateKey string, client *ethclient.Client) (*Exchange, error)
 		PrivateKey: pk,
 		orderbooks: orderbooks,
 	}, nil
+}
+
+func (ex *Exchange) handleGetTrades(c echo.Context) error {
+	market := Market(c.Param("market"))
+	ob, ok := ex.orderbooks[market]
+	if !ok {
+		return c.JSON(http.StatusBadRequest, APIError{Error: "orderbook not found"})
+	}
+	return c.JSON(http.StatusOK, ob.Trades)
 }
 
 func (ex *Exchange) handleGetOrders(c echo.Context) error {
