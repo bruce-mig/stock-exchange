@@ -25,10 +25,19 @@ func marketOrderPlacer(c *client.Client) {
 	ticker := time.NewTicker(tick)
 	for {
 
+		trades, err := c.GetTrades("INN")
+		if err != nil {
+			panic(err)
+		}
+
+		if len(trades) > 0 {
+			fmt.Printf("EXCHANGE PRICE:====>%.2f\n", trades[len(trades)-1].Price)
+		}
+
 		otherMarketSellOrder := &client.PlaceOrderParams{
 			UserID: 8,
 			Bid:    false,
-			Size:   5000,
+			Size:   1000,
 		}
 
 		orderResp, err := c.PlaceMarketOrder(otherMarketSellOrder)
@@ -39,7 +48,7 @@ func marketOrderPlacer(c *client.Client) {
 		marketSellOrder := &client.PlaceOrderParams{
 			UserID: 6,
 			Bid:    false,
-			Size:   3000,
+			Size:   100,
 		}
 
 		orderResp, err = c.PlaceMarketOrder(marketSellOrder)
@@ -50,7 +59,7 @@ func marketOrderPlacer(c *client.Client) {
 		marketBuyOrder := &client.PlaceOrderParams{
 			UserID: 6,
 			Bid:    true,
-			Size:   1000,
+			Size:   100,
 		}
 
 		orderResp, err = c.PlaceMarketOrder(marketBuyOrder)
