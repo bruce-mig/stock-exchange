@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/sirupsen/logrus"
 
 	"github.com/labstack/echo/v4"
 )
@@ -109,38 +110,9 @@ func StartServer() {
 		log.Fatal(err)
 	}
 
-	user7Address := "0x28a8746e75304c0780E011BEd21C72cD78cd535E"
-	user7Balance, err := client.BalanceAt(context.Background(), common.HexToAddress(user7Address), nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("user7: ", user7Balance)
-
-	user8Address := "0xACa94ef8bD5ffEE41947b4585a84BdA5a3d3DA6E"
-	user8Balance, err := client.BalanceAt(context.Background(), common.HexToAddress(user8Address), nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("user8: ", user8Balance)
-
-	user6Address := "0x3E5e9111Ae8eB78Fe1CC3bb8915d5D461F3Ef9A9"
-	user6Balance, err := client.BalanceAt(context.Background(), common.HexToAddress(user6Address), nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("user6: ", user6Balance)
-
-	pkStr8 := "829e924fdf021ba3dbbc4225edfece9aca04b929d6e75613329ca6f1d31c0bb4"
-	user8 := NewUser(pkStr8, 8)
-	ex.Users[user8.ID] = user8
-
-	pkStr7 := "a453611d9419d0e56f499079478fd72c37b251a94bfde4d19872c44cf65386e3"
-	user7 := NewUser(pkStr7, 7)
-	ex.Users[user7.ID] = user7
-
-	pkStr6 := "e485d098507f54e7733a205420dfddbe58db035fa577fc294ebd14db90767a52"
-	user6 := NewUser(pkStr6, 6)
-	ex.Users[user6.ID] = user6
+	ex.registerUser("829e924fdf021ba3dbbc4225edfece9aca04b929d6e75613329ca6f1d31c0bb4", 8)
+	ex.registerUser("a453611d9419d0e56f499079478fd72c37b251a94bfde4d19872c44cf65386e3", 7)
+	ex.registerUser("e485d098507f54e7733a205420dfddbe58db035fa577fc294ebd14db90767a52", 6)
 
 	e.GET("/trades/:market", ex.handleGetTrades)
 	e.GET("/order/user/:userID", ex.handleGetOrders)
@@ -280,36 +252,40 @@ func (ex *Exchange) handleGetBook(c echo.Context) error {
 }
 
 func (ex *Exchange) handleGetBestBid(c echo.Context) error {
+
 	market := Market(c.Param("market"))
 	ob := ex.orderbooks[market]
+	order := Order{}
 
 	if len(ob.Bids()) == 0 {
-		return fmt.Errorf("the bids are empty")
+		return c.JSON(http.StatusOK, order)
 	}
-	bestBidPrice := ob.Bids()[0].Price
+	bestLimit := ob.Bids()[0]
+	bestOrder := bestLimit.Orders[0]
 
-	pr := &PriceResponse{
-		Price: bestBidPrice,
-	}
+	order.Price = bestLimit.Price
+	order.UserID = bestOrder.UserID
 
-	return c.JSON(http.StatusOK, pr)
+	return c.JSON(http.StatusOK, order)
 
 }
 
 func (ex *Exchange) handleGetBestAsk(c echo.Context) error {
 	market := Market(c.Param("market"))
 	ob := ex.orderbooks[market]
+	order := Order{}
 
 	if len(ob.Asks()) == 0 {
-		return fmt.Errorf("the asks are empty")
-	}
-	bestAskPrice := ob.Asks()[0].Price
-
-	pr := &PriceResponse{
-		Price: bestAskPrice,
+		return c.JSON(http.StatusOK, order)
 	}
 
-	return c.JSON(http.StatusOK, pr)
+	bestLimit := ob.Asks()[0]
+	bestOrder := bestLimit.Orders[0]
+
+	order.Price = bestLimit.Price
+	order.UserID = bestOrder.UserID
+
+	return c.JSON(http.StatusOK, order)
 
 }
 
@@ -357,9 +333,14 @@ func (ex *Exchange) handlePlaceMarketOrder(market Market, order *orderbook.Order
 
 	avgPrice := sumPrice / float64(len(matches))
 
-	log.Printf("filled MARKET order => %d | size: [%.2f] | avgPrice: [%.2f]", order.ID, totalSizeFilled, avgPrice)
+	logrus.WithFields(logrus.Fields{
+		"type":     order.Type(),
+		"size":     totalSizeFilled,
+		"avgPrice": avgPrice,
+	}).Info("filled MARKET order")
 
 	newOrderMap := make(map[int64][]*orderbook.Order)
+
 	ex.mu.Lock()
 	for userID, orderbookOrders := range ex.Orders {
 		for i := 0; i < len(orderbookOrders); i++ {
@@ -387,7 +368,11 @@ func (ex *Exchange) handlePlaceLimitOrder(market Market, price float64, order *o
 	ex.Orders[order.UserID] = append(ex.Orders[order.UserID], order)
 	ex.mu.Unlock()
 
-	log.Printf("new LIMIT order => type: [%t] | price [%.2f] | size [%.2f]", order.Bid, order.Limit.Price, order.Size)
+	// logrus.WithFields(logrus.Fields{
+	// 	"type":  order.Type(),
+	// 	"price": order.Limit.Price,
+	// 	"size":  order.Size,
+	// }).Info("new LIMIT order")
 
 	return nil
 }
@@ -411,7 +396,6 @@ func (ex *Exchange) handlePlaceOrder(c echo.Context) error {
 
 	//Market Orders
 	if placeOrderData.Type == MarketOrder {
-		// matches, matchedOrders := ex.handlePlaceMarketOrder(market, order)
 		matches, _ := ex.handlePlaceMarketOrder(market, order)
 		if err := ex.handleMatches(matches); err != nil {
 			return err
@@ -422,7 +406,7 @@ func (ex *Exchange) handlePlaceOrder(c echo.Context) error {
 		OrderID: order.ID,
 	}
 
-	return c.JSON(200, res)
+	return c.JSON(http.StatusOK, res)
 }
 
 func (ex *Exchange) handleMatches(matches []orderbook.Match) error {
@@ -448,13 +432,13 @@ func (ex *Exchange) handleMatches(matches []orderbook.Match) error {
 
 		amount := big.NewInt(int64(match.Sizefilled))
 
-		transferETH(*ex.Client, fromUser.PrivateKey, toAddress, amount)
+		transferETH(ex.Client, fromUser.PrivateKey, toAddress, amount)
 
 	}
 	return nil
 }
 
-func transferETH(client ethclient.Client, fromPrivKey *ecdsa.PrivateKey, toAddress common.Address, amount *big.Int) error {
+func transferETH(client *ethclient.Client, fromPrivKey *ecdsa.PrivateKey, toAddress common.Address, amount *big.Int) error {
 	ctx := context.Background()
 	publicKey := fromPrivKey.Public()
 	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
@@ -484,4 +468,13 @@ func transferETH(client ethclient.Client, fromPrivKey *ecdsa.PrivateKey, toAddre
 
 	return client.SendTransaction(ctx, signedTx)
 
+}
+
+func (ex *Exchange) registerUser(pk string, userId int64) {
+	user := NewUser(pk, userId)
+	ex.Users[userId] = user
+
+	logrus.WithFields(logrus.Fields{
+		"id": userId,
+	}).Info("new exchange user")
 }
