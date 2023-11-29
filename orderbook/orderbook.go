@@ -6,6 +6,8 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 type (
@@ -78,7 +80,14 @@ func NewOrder(bid bool, size float64, userID int64) *Order {
 }
 
 func (o *Order) String() string {
-	return fmt.Sprintf("[size: %.2f]", o.Size)
+	return fmt.Sprintf("[size: %.2f] | [id: %d]", o.Size, o.ID)
+}
+
+func (o *Order) Type() string {
+	if o.Bid {
+		return "BID"
+	}
+	return "ASK"
 }
 
 func (o *Order) IsFilled() bool {
@@ -200,6 +209,9 @@ func NewOrderbook() *Orderbook {
 }
 
 func (ob *Orderbook) PlaceMarketOrder(o *Order) []Match {
+	ob.mu.Lock()
+	defer ob.mu.Unlock()
+
 	matches := []Match{}
 
 	if o.Bid {
@@ -240,6 +252,10 @@ func (ob *Orderbook) PlaceMarketOrder(o *Order) []Match {
 
 	}
 
+	logrus.WithFields(logrus.Fields{
+		"currentPrice": ob.Trades[len(ob.Trades)-1].Price,
+	}).Info()
+
 	return matches
 }
 
@@ -266,6 +282,14 @@ func (ob *Orderbook) PlaceLimitOrder(price float64, o *Order) {
 			ob.AskLimits[price] = limit
 		}
 	}
+
+	logrus.WithFields(logrus.Fields{
+		"price":  limit.Price,
+		"type":   o.Type(),
+		"size":   o.Size,
+		"userID": o.UserID,
+	}).Info("new limit order")
+
 	ob.Orders[o.ID] = o
 	limit.AddOrder(o)
 }
