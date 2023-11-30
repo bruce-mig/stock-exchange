@@ -216,7 +216,7 @@ func (ob *Orderbook) PlaceMarketOrder(o *Order) []Match {
 
 	if o.Bid {
 		if o.Size > ob.AskTotalVolume() {
-			panic(fmt.Errorf("not enough volume [size: %.2f] for market order [size: %.2f]", ob.AskTotalVolume(), o.Size))
+			panic(fmt.Errorf("not enough ask volume [size: %.2f] for bid market order [size: %.2f]", ob.AskTotalVolume(), o.Size))
 		}
 		for _, limit := range ob.Asks() {
 			limitMatches := limit.Fill(o)
@@ -229,7 +229,7 @@ func (ob *Orderbook) PlaceMarketOrder(o *Order) []Match {
 		}
 	} else {
 		if o.Size > ob.BidTotalVolume() {
-			panic(fmt.Errorf("not enough volume [size: %.2f] for market order [size: %.2f]", ob.BidTotalVolume(), o.Size))
+			panic(fmt.Errorf("not enough bid volume [size: %.2f] for ask market order [size: %.2f]", ob.BidTotalVolume(), o.Size))
 		}
 		for _, limit := range ob.Bids() {
 			limitMatches := limit.Fill(o)
