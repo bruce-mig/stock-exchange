@@ -85,11 +85,7 @@ func (mm *MarketMaker) makerLoop() {
 			bestAsk.Price = bestBid.Price + mm.priceOffset*2
 		}
 
-		spread := bestAsk.Price - bestAsk.Price
-
-		// logrus.WithFields(logrus.Fields{
-		// 	"spread": spread,
-		// }).Info("market SPREAD =========================>")
+		spread := bestAsk.Price - bestBid.Price
 
 		if spread <= mm.minSpread {
 			continue
