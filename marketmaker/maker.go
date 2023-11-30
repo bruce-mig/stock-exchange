@@ -69,7 +69,7 @@ func (mm *MarketMaker) makerLoop() {
 			break
 		}
 
-		if bestAsk.Price == 0 && bestBid.Price == 0 {
+		if bestAsk.Price == 0.0 && bestBid.Price == 0.0 {
 			if err := mm.seedMarket(); err != nil {
 				logrus.Error(err)
 				break
@@ -86,6 +86,10 @@ func (mm *MarketMaker) makerLoop() {
 		}
 
 		spread := bestAsk.Price - bestAsk.Price
+
+		// logrus.WithFields(logrus.Fields{
+		// 	"spread": spread,
+		// }).Info("market SPREAD =========================>")
 
 		if spread <= mm.minSpread {
 			continue
@@ -145,11 +149,8 @@ func (mm *MarketMaker) seedMarket() error {
 	}
 
 	_, err = mm.exchangeClient.PlaceLimitOrder(askOrder)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }
 
 // this will simulate a call to another exchange fetching
