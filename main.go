@@ -23,7 +23,7 @@ func main() {
 
 	cfg := mm.Config{
 		UserID:         8,
-		OrderSize:      10,
+		OrderSize:      200, //original 10
 		MinSpread:      20,
 		MakeInterval:   1 * time.Second,
 		SeedOffset:     40,
