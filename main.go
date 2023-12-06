@@ -44,7 +44,8 @@ func main() {
 func marketOrderPlacer(c *client.Client) {
 	ticker := time.NewTicker(500 * time.Millisecond)
 
-	for {
+	for i := 0; i < 25; i++ {
+
 		randInt := rand.Intn(10)
 		bid := true
 		if randInt < 7 {
@@ -61,7 +62,28 @@ func marketOrderPlacer(c *client.Client) {
 		if err != nil {
 			panic(err)
 		}
-
+		i++
 		<-ticker.C
 	}
+
+	// for {
+	// 	randInt := rand.Intn(10)
+	// 	bid := true
+	// 	if randInt < 7 {
+	// 		bid = false
+	// 	}
+
+	// 	order := &client.PlaceOrderParams{
+	// 		UserID: 7,
+	// 		Bid:    bid,
+	// 		Size:   1,
+	// 	}
+
+	// 	_, err := c.PlaceMarketOrder(order)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+
+	// 	<-ticker.C
+	// }
 }
