@@ -23,8 +23,5 @@ jobs:
     - name: Start ganache-cli deterministically
       run: docker run -d -p 8545:8545 trufflesuite/ganache-cli:latest -d
 
-    - name: Start server
-      run: make run
-
     - name: Test
       run: make test
