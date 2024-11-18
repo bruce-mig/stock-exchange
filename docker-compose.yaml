@@ -1,0 +1,12 @@
+services:
+  ganache:
+    image: trufflesuite/ganache:v7.9.2
+    ports:
+      - "8545:8545"
+    # Nota Bene - the mnemonic below is *INSECURE* and shouldn't be used for real funds, only local development
+    #             it serves only to create deterministic accounts that can be shared with metamask
+    command: 
+      - --mnemonic 
+      - "drink cereal saddle tail identify skin motion other shoot night fiscal doll"
+      - --host
+      - 0.0.0.0
