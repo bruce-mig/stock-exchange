@@ -54,7 +54,7 @@ func marketOrderPlacer(c *client.Client) {
 		order := &client.PlaceOrderParams{
 			UserID: 7,
 			Bid:    bid,
-			Size:   1,
+			Size:   10,
 		}
 
 		_, err := c.PlaceMarketOrder(order)
