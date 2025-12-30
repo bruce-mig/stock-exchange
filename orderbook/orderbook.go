@@ -126,14 +126,17 @@ func (l *Limit) DeleteOrder(o *Order) {
 		if l.Orders[i] == o {
 			l.Orders[i] = l.Orders[len(l.Orders)-1]
 			l.Orders = l.Orders[:len(l.Orders)-1]
+
+			o.Limit = nil
+			l.TotalVolume -= o.Size
+
+			//sort the remaining orders
+			sort.Sort(l.Orders)
+			return
 		}
 	}
 
-	o.Limit = nil
-	l.TotalVolume -= o.Size
 
-	//sort the remaining orders
-	sort.Sort(l.Orders)
 }
 
 func (l *Limit) Fill(o *Order) []Match {
