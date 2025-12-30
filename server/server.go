@@ -26,7 +26,7 @@ import (
 const (
 	MarketOrder OrderType = "MARKET"
 	LimitOrder  OrderType = "LIMIT"
-	MarketINN   Market    = "INN"
+	MarketINN   Market    = "INN.ZSX"
 )
 
 var exchangePrivateKey = os.Getenv("EXCHANGE_PK")
@@ -302,7 +302,7 @@ func (ex *Exchange) cancelOrder(c echo.Context) error {
 
 	log.Println("order cancelled id =>", id)
 
-	return c.JSON(200, map[string]any{"msg": "order deleted"})
+	return c.JSON(200, map[string]any{"msg": fmt.Sprintf("order cancelled id => %d", id)})
 }
 
 func (ex *Exchange) handlePlaceMarketOrder(market Market, order *orderbook.Order) ([]orderbook.Match, []*MatchedOrder) {
