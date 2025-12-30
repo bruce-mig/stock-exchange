@@ -41,8 +41,12 @@ func TestLimit(t *testing.T) {
 	l.AddOrder(buyOrderB)
 	l.AddOrder(buyOrderC)
 
+	fmt.Printf("Before delete: ")
+	fmt.Println(l)
+
 	l.DeleteOrder(buyOrderB)
 
+	fmt.Printf("After delete: ")
 	fmt.Println(l)
 }
 
