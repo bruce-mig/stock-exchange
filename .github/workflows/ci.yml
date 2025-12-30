@@ -2,26 +2,25 @@ name: ci-test
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
-
   test:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Set up Go 1.22.x
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.22.x'
+      - name: Set up Go 1.25.x
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.25.x"
 
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v3
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v3
 
-    - name: Start ganache-cli deterministically
-      run: docker run -d -p 8545:8545 trufflesuite/ganache-cli:latest -d
+      - name: Start ganache-cli deterministically
+        run: docker run -d -p 8545:8545 trufflesuite/ganache-cli:latest -d
 
-    - name: Test
-      run: make test
+      - name: Test
+        run: make test
