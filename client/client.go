@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/bruce-mig/stock-exchange/orderbook"
 	"github.com/bruce-mig/stock-exchange/server"
+	_ "github.com/joho/godotenv/autoload"
 )
 
-const Endpoint = "http://localhost:3000"
+var Endpoint = os.Getenv("SERVER_ENDPOINT")
 
 type (
 	Client struct {
@@ -18,7 +20,7 @@ type (
 	}
 
 	PlaceOrderParams struct {
-		UserID int64
+		UserID string
 		Bid    bool
 		// Price only needed for placing LIMIT orders
 		Price float64
