@@ -9,7 +9,7 @@ import (
 
 type (
 	Config struct {
-		UserID         int64
+		UserID         string
 		OrderSize      float64
 		MinSpread      float64
 		SeedOffset     float64
@@ -19,7 +19,7 @@ type (
 	}
 
 	MarketMaker struct {
-		userID         int64
+		userID         string
 		orderSize      float64
 		minSpread      float64
 		seedOffset     float64

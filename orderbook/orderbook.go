@@ -27,7 +27,7 @@ type (
 
 	Order struct {
 		ID        int64
-		UserID    int64
+		UserID    string
 		Size      float64
 		Bid       bool
 		Limit     *Limit //pointer to the limit level the order belongs to
@@ -68,7 +68,7 @@ func (o Orders) Len() int           { return len(o) }
 func (o Orders) Swap(i, j int)      { o[i], o[j] = o[j], o[i] }
 func (o Orders) Less(i, j int) bool { return o[i].Timestamp < o[j].Timestamp }
 
-func NewOrder(bid bool, size float64, userID int64) *Order {
+func NewOrder(bid bool, size float64, userID string) *Order {
 
 	return &Order{
 		ID:        int64(rand.Intn(100000000)),
