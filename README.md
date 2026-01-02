@@ -1,7 +1,6 @@
 # stock-exchange
 
-An exchange with a working matching engine, orderbooks and market maker.  
-Trading from Ganache sandbox environment.
+An exchange with a working matching engine, orderbooks and market maker.
 
 ---
 
@@ -15,14 +14,15 @@ git clone git@github.com:bruce-mig/stock-exchange.git
 
 ### Start ganache sandbox server
 
-Ensure docker is running the run
+Ensure docker is running then run
 
 ```bash
 cd stock-exchange\
 docker compose up
 ```
 
-Ganache server is listening on port `:8545`
+Ganache server will provide wallets to the users so they can trade on the exchange.  
+Ganache server will be listening on port `:8545`
 
 ### Test the Stock Exchange Application
 
@@ -32,6 +32,20 @@ make test
 ```
 
 ### Start the Stock Exchange Application
+
+First create a `.env` file at the root of the project with the following keys:
+```bash
+# retrieve the private keys from the ganache server logs
+EXCHANGE_PK="" # exchange private key
+USER_1_PK="" # user private key
+USER_2_PK="" # user private key
+USER_3_PK="" # user private key
+
+SERVER_ENDPOINT="http://localhost:3000"
+CSD_ENDPOINT="http://localhost:8545"
+```
+
+Then start the application with the following command
 
 ```bash
 cd stock-exchange
