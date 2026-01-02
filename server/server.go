@@ -29,7 +29,10 @@ const (
 	MarketINN   Market    = "INN.ZSX"
 )
 
-var exchangePrivateKey = os.Getenv("EXCHANGE_PK")
+var (
+	exchangePrivateKey = os.Getenv("EXCHANGE_PK")
+	csdEndpoint        = os.Getenv("CSD_ENDPOINT")
+)
 
 type (
 	OrderType string
@@ -38,15 +41,15 @@ type (
 	Exchange struct {
 		Client *ethclient.Client
 		mu     sync.RWMutex
-		Users  map[int64]*User
+		Users  map[string]*User
 		// Orders maps a user to his orders.
-		Orders     map[int64][]*orderbook.Order
+		Orders     map[string][]*orderbook.Order
 		PrivateKey *ecdsa.PrivateKey
 		orderbooks map[Market]*orderbook.Orderbook
 	}
 
 	PlaceOrderRequest struct {
-		UserID int64
+		UserID string
 		Type   OrderType //limit or market
 		Bid    bool
 		Size   float64
@@ -55,7 +58,7 @@ type (
 	}
 
 	Order struct {
-		UserID    int64
+		UserID    string
 		ID        int64
 		Price     float64
 		Size      float64
@@ -71,14 +74,14 @@ type (
 	}
 
 	MatchedOrder struct {
-		UserID int64
+		UserID string
 		Price  float64
 		Size   float64
 		ID     int64
 	}
 
 	User struct {
-		ID         int64
+		ID         string
 		PrivateKey *ecdsa.PrivateKey
 	}
 
@@ -104,7 +107,7 @@ func StartServer() {
 	e := echo.New()
 	e.HTTPErrorHandler = httpErrorHandler
 
-	client, err := ethclient.Dial("http://localhost:8545")
+	client, err := ethclient.Dial(csdEndpoint)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -113,9 +116,9 @@ func StartServer() {
 		log.Fatal(err)
 	}
 
-	ex.registerUser(os.Getenv("USER_8_PK"), 8)
-	ex.registerUser(os.Getenv("USER_7_PK"), 7)
-	ex.registerUser(os.Getenv("USER_6_PK"), 6)
+	ex.registerUser(os.Getenv("USER_1_PK"), "CSD000000000001-0001")
+	ex.registerUser(os.Getenv("USER_2_PK"), "CSD000000000002-0001")
+	ex.registerUser(os.Getenv("USER_3_PK"), "CSD000000000003-0001")
 
 	e.GET("/trades/:market", ex.handleGetTrades)
 	e.GET("/order/user/:userID", ex.handleGetOrders)
@@ -129,7 +132,7 @@ func StartServer() {
 	e.Start(":3000")
 }
 
-func NewUser(privKey string, id int64) *User {
+func NewUser(privKey string, id string) *User {
 	pk, err := crypto.HexToECDSA(privKey)
 	if err != nil {
 		panic(err)
@@ -155,8 +158,8 @@ func NewExchange(privateKey string, client *ethclient.Client) (*Exchange, error)
 
 	return &Exchange{
 		Client:     client,
-		Users:      make(map[int64]*User),
-		Orders:     make(map[int64][]*orderbook.Order),
+		Users:      make(map[string]*User),
+		Orders:     make(map[string][]*orderbook.Order),
 		PrivateKey: pk,
 		orderbooks: orderbooks,
 	}, nil
@@ -172,15 +175,11 @@ func (ex *Exchange) handleGetTrades(c echo.Context) error {
 }
 
 func (ex *Exchange) handleGetOrders(c echo.Context) error {
-	userIDStr := c.Param("userID")
-	userID, err := strconv.Atoi(userIDStr)
-	if err != nil {
-		return err
-	}
+	userID := c.Param("userID")
 
 	ex.mu.RLock()
 
-	orderbookOrders := ex.Orders[int64(userID)]
+	orderbookOrders := ex.Orders[userID]
 	orderResp := &GetOrdersResponse{
 		Asks: []Order{},
 		Bids: []Order{},
@@ -342,7 +341,7 @@ func (ex *Exchange) handlePlaceMarketOrder(market Market, order *orderbook.Order
 		"avgPrice": avgPrice,
 	}).Info("filled MARKET order")
 
-	newOrderMap := make(map[int64][]*orderbook.Order)
+	newOrderMap := make(map[string][]*orderbook.Order)
 
 	ex.mu.Lock()
 	for userID, orderbookOrders := range ex.Orders {
@@ -416,12 +415,12 @@ func (ex *Exchange) handleMatches(matches []orderbook.Match) error {
 	for _, match := range matches {
 		fromUser, ok := ex.Users[match.Ask.UserID]
 		if !ok {
-			return fmt.Errorf("user not found: %d", match.Ask.UserID)
+			return fmt.Errorf("user not found: %+v", match.Ask.UserID)
 		}
 
 		toUser, ok := ex.Users[match.Bid.UserID]
 		if !ok {
-			return fmt.Errorf("user not found: %d", match.Bid.UserID)
+			return fmt.Errorf("user not found: %+v", match.Bid.UserID)
 		}
 
 		toAddress := crypto.PubkeyToAddress(toUser.PrivateKey.PublicKey)
@@ -435,13 +434,13 @@ func (ex *Exchange) handleMatches(matches []orderbook.Match) error {
 
 		amount := big.NewInt(int64(match.Sizefilled))
 
-		transferETH(ex.Client, fromUser.PrivateKey, toAddress, amount)
+		securitiesTransfer(ex.Client, fromUser.PrivateKey, toAddress, amount)
 
 	}
 	return nil
 }
 
-func transferETH(client *ethclient.Client, fromPrivKey *ecdsa.PrivateKey, toAddress common.Address, amount *big.Int) error {
+func securitiesTransfer(client *ethclient.Client, fromPrivKey *ecdsa.PrivateKey, toAddress common.Address, amount *big.Int) error {
 	ctx := context.Background()
 	publicKey := fromPrivKey.Public()
 	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
@@ -473,7 +472,7 @@ func transferETH(client *ethclient.Client, fromPrivKey *ecdsa.PrivateKey, toAddr
 
 }
 
-func (ex *Exchange) registerUser(pk string, userId int64) {
+func (ex *Exchange) registerUser(pk string, userId string) {
 	user := NewUser(pk, userId)
 	ex.Users[userId] = user
 
