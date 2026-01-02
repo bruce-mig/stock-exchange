@@ -16,13 +16,13 @@ func main() {
 
 	go server.StartServer()
 
-	//wait for server to boot up b4 client send reqq
+	//wait for server to boot up before client sends request
 	time.Sleep(1 * time.Second)
 
 	c := client.NewClient()
 
 	cfg := mm.Config{
-		UserID:         8,
+		UserID:         "CSD000000000001-0001",
 		OrderSize:      200, //original 10
 		MinSpread:      20,
 		MakeInterval:   1 * time.Second,
@@ -38,7 +38,7 @@ func main() {
 	time.Sleep(2 * time.Second)
 	go marketOrderPlacer(c)
 
-	select {}
+	select {} // block main
 }
 
 func marketOrderPlacer(c *client.Client) {
@@ -52,7 +52,7 @@ func marketOrderPlacer(c *client.Client) {
 		}
 
 		order := &client.PlaceOrderParams{
-			UserID: 7,
+			UserID: "CSD000000000002-0001",
 			Bid:    bid,
 			Size:   10,
 		}
