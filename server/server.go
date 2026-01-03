@@ -26,7 +26,7 @@ import (
 const (
 	MarketOrder OrderType = "MARKET"
 	LimitOrder  OrderType = "LIMIT"
-	MarketINN   Market    = "INN.ZSX"
+	MarketINN   Market    = "INN"
 )
 
 var (
