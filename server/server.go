@@ -267,6 +267,10 @@ func (ex *Exchange) handleGetBestBid(c echo.Context) error {
 
 	order.Price = bestLimit.Price
 	order.UserID = bestOrder.UserID
+	order.ID = bestOrder.ID
+	order.Size = bestOrder.Size
+	order.Bid = bestOrder.Bid
+	order.Timestamp = bestOrder.Timestamp
 
 	return c.JSON(http.StatusOK, order)
 
@@ -286,6 +290,10 @@ func (ex *Exchange) handleGetBestAsk(c echo.Context) error {
 
 	order.Price = bestLimit.Price
 	order.UserID = bestOrder.UserID
+	order.ID = bestOrder.ID
+	order.Size = bestOrder.Size
+	order.Bid = bestOrder.Bid
+	order.Timestamp = bestOrder.Timestamp
 
 	return c.JSON(http.StatusOK, order)
 
